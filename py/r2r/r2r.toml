@@ -9,10 +9,13 @@ default_max_collections_per_user = 5_000
 default_max_upload_size = 214748364800
 
 # LLM used for internal operations, like deriving conversation names
-fast_llm = "openai/gpt-5-nano-2025-08-07"
+# Using an OpenAI-compatible base at LMSTUDIO_API_BASE for text generation
+# e.g. export LMSTUDIO_API_BASE="http://cerebrogen.skhms.com/api"
+fast_llm = "lmstudio/llm"
 
 # LLM used for user-facing output, like RAG replies
-quality_llm = "openai/gpt-5-2025-08-07"
+# Uses the same OpenAI-compatible generation base URL as above
+quality_llm = "lmstudio/llm"
 
 # LLM used for ingesting visual inputs
 vlm = "openai/gpt-5-2025-08-07"
@@ -44,16 +47,21 @@ default_admin_email = "admin@example.com"
 default_admin_password = "change_me_immediately"
 
 [completion]
-provider = "r2r"
+# Use the OpenAICompletionProvider which supports OpenAI-like servers by model prefix.
+# With model prefix "lmstudio/", the base URL is taken from LMSTUDIO_API_BASE and
+# API key from LMSTUDIO_API_KEY.
+provider = "openai"
 concurrent_request_limit = 64
 request_timeout = 60
 
   [completion.generation_config]
-  temperature = 0.1
-  top_p = 1
-  max_tokens_to_sample = 4_096
+  # Defaults for your TEXT model
+  temperature = 0.7
+  top_p = 0.8
+  max_tokens_to_sample = 131072
   stream = false
-  add_generation_kwargs = { }
+  # Optional extra args your server might accept (not all providers use these)
+  add_generation_kwargs = { top_k = 20, repetition_penalty = 1.05, presence_penalty = 1.5 }
 
 [crypto]
 provider = "bcrypt"
@@ -80,22 +88,24 @@ collection_summary_prompt = "collection_summary"
     vacuum_schedule = "0 3 * * *"  # Run at 3:00 AM daily
 
 [embedding]
+# Use LiteLLM for embeddings so we can point to a separate OpenAI-like base URL.
+# Set OPENAI_API_BASE to your embedding server, e.g.:
+#   export OPENAI_API_BASE="http://172.28.139.49/rse/embedding/v1"
+#   export OPENAI_API_KEY="<input your embedding api token>"
 provider = "litellm"
-# For basic applications, use `openai/text-embedding-3-small` with `base_dimension = 512`
-# For advanced applications, use `openai/text-embedding-3-large` with `base_dimension = 3072` and binary quantization
-base_model = "openai/text-embedding-3-small"
-base_dimension = 512
-# rerank_model = "huggingface/mixedbread-ai/mxbai-rerank-large-v1" # reranking model
+base_model = "openai/gte-Qwen2-1.5B-instruct"
+base_dimension = 1536
+# rerank_model = "huggingface/mixedbread-ai/mxbai-rerank-large-v1" # optional reranking model
 batch_size = 128
 concurrent_request_limit = 256
 initial_backoff = 1.0
 quantization_settings = { quantization_type = "FP32" }
 
 [completion_embedding]
-# Generally this should be the same as the embedding config, but advanced users may want to run with a different provider to reduce latency
+# Keep this consistent with [embedding] so vector dimensions match
 provider = "litellm"
-base_model = "openai/text-embedding-3-small"
-base_dimension = 512
+base_model = "openai/gte-Qwen2-1.5B-instruct"
+base_dimension = 1536
 batch_size = 128
 concurrent_request_limit = 256
 
