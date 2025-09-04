@@ -39,13 +39,16 @@ services:
       R2R_POSTGRES_PORT: 5432
       R2R_POSTGRES_DBNAME: r2r
       # Optional: pass generation/embedding endpoints & keys via env or env_file
-      # LMSTUDIO_API_BASE: http://cerebrogen.skhms.com/api
-      # LMSTUDIO_API_KEY: <your_api_token>
-      # OPENAI_API_BASE: http://172.28.139.49/rse/embedding/v1
-      # OPENAI_API_KEY: <your_embedding_api_token>
+      LMSTUDIO_API_BASE: http://cerebrogen.skhms.com/api
+      LMSTUDIO_API_KEY: sk-26e7cff418f44686ba5afad4282771a9
+      OPENAI_API_BASE: http://athena.skhms.com/rse/embedding/qwen3-4b/v1/embeddings
+      OPENAI_API_KEY: rse-s0HBWeEhWUXJx5LI3gNNtJWHdKBOePvRVuh8s3BplYRiT7VZ0N2aMej
+      R2R_USER_CONFIGS_PATH: /app/user_configs
     # Optionally include shared env file; values here override env_file
     # env_file:
     #   - ./env/r2r.env
+    volumes:
+      - ./user_configs:/app/user_configs
     ports:
       - "8002:8002"
     restart: unless-stopped
