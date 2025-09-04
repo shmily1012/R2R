@@ -21,8 +21,8 @@ services:
 
   r2r:
     build:
-      context: ..
-      dockerfile: py/Dockerfile
+      context: ../py
+      dockerfile: Dockerfile
     container_name: r2r_app
     depends_on:
       postgres:
