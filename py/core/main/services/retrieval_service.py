@@ -977,9 +977,63 @@ class RetrievalService(Service):
     async def embedding(
         self,
         text: str,
+        model: Optional[str] = None,
+        dimension: Optional[int] = None,
     ):
+        """Generate an embedding for the given text.
+
+        Supports optional per-request model override only when the embedding
+        provider is 'litellm'. If `dimension` is provided, it must match the
+        configured completion_embedding.base_dimension.
+        """
+        # Validate optional dimension against configured dimension
+        try:
+            configured_dim = self.config.completion_embedding.base_dimension
+        except Exception:
+            configured_dim = None
+
+        if dimension is not None and configured_dim is not None:
+            # Some configs may store NaN; guard that case
+            try:
+                import math
+
+                if not math.isnan(configured_dim) and dimension != configured_dim:
+                    raise R2RException(
+                        status_code=400,
+                        message=(
+                            f"Requested dimension {dimension} does not match configured dimension {configured_dim}."
+                        ),
+                    )
+            except Exception:
+                # If math.isnan fails (configured_dim not float), just compare directly
+                if dimension != configured_dim:
+                    raise R2RException(
+                        status_code=400,
+                        message=(
+                            f"Requested dimension {dimension} does not match configured dimension {configured_dim}."
+                        ),
+                    )
+
+        # Only LiteLLM embedding provider safely supports per-call model override
+        provider_name = getattr(
+            getattr(self.providers.completion_embedding, "config", None), "provider", None
+        )
+
+        kwargs: dict = {}
+        if model is not None:
+            if provider_name != "litellm":
+                raise R2RException(
+                    status_code=400,
+                    message=(
+                        "Per-request embedding model override is only supported when the embedding provider is 'litellm'."
+                    ),
+                )
+            kwargs["model"] = model
+        if dimension is not None:
+            kwargs["dimensions"] = dimension
+
         return await self.providers.completion_embedding.async_get_embedding(
-            text=text
+            text=text, **kwargs
         )
 
     async def rag(

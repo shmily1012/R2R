@@ -946,6 +946,18 @@ class RetrievalRouter(BaseRouterV3):
                 ...,
                 description="Text to generate embeddings for",
             ),
+            model: Optional[str] = Body(
+                default=None,
+                description=(
+                    "Optional embedding model override. Only supported when the embedding provider is 'litellm'."
+                ),
+            ),
+            dimension: Optional[int] = Body(
+                default=None,
+                description=(
+                    "Optional embedding dimension to validate against configured dimension. Must match configured dimension if provided."
+                ),
+            ),
             auth_user=Depends(self.providers.auth.auth_wrapper()),
         ) -> WrappedEmbeddingResponse:
             """Generate embeddings for the provided text using the specified
@@ -958,4 +970,6 @@ class RetrievalRouter(BaseRouterV3):
 
             return await self.services.retrieval.embedding(
                 text=text,
+                model=model,
+                dimension=dimension,
             )

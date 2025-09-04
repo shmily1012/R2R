@@ -47,12 +47,15 @@ R2R Quick Start (Linux, with Separate Generation and Embedding Bases)
   - Docker: curl -X POST http://localhost:8002/v3/retrieval/completion -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"Say hello in Chinese."}],"generation_config":{"model":"lmstudio/llm","stream":false, "max_tokens":100}}'
 
 - Embedding
-  - Local:  curl -X POST http://localhost:8002/v3/retrieval/embedding \
-              -H "Content-Type: application/json" \
-              -d '{"text":"What is DeepSeek R1?"}'
-  - Docker: curl -X POST http://localhost:8002/v3/retrieval/embedding \
-              -H "Content-Type: application/json" \
-              -d '{"text":"What is DeepSeek R1?"}'
+  - Local (configured model):
+      curl -X POST http://localhost:8002/v3/retrieval/embedding \
+        -H "Content-Type: application/json" \
+        -d '{"text":"What is DeepSeek R1?"}'
+  - Local (override model via LiteLLM provider; dimension must match e.g. 1536):
+      curl -X POST http://localhost:8002/v3/retrieval/embedding \
+        -H "Content-Type: application/json" \
+        -d '{"text":"What is DeepSeek R1?","model":"openai/gte-Qwen2-1.5B-instruct","dimension":1536}'
+  - Docker: same URLs on port 8002
 
 6) Docker Dev (Linux)
 - Compose file: docker/compose.dev.yaml (runs Postgres + R2R on port 8002)
