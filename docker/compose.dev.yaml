@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: r2r_postgres
+    environment:
+      POSTGRES_USER: r2r
+      POSTGRES_PASSWORD: r2rpassword
+      POSTGRES_DB: r2r
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U r2r -d r2r"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  r2r:
+    build:
+      context: ..
+      dockerfile: py/Dockerfile
+    container_name: r2r_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # R2R server
+      R2R_HOST: 0.0.0.0
+      R2R_PORT: 8002
+      R2R_PROJECT_NAME: r2r_local
+      # Database wiring (auto-configured to the postgres service)
+      R2R_POSTGRES_USER: r2r
+      R2R_POSTGRES_PASSWORD: r2rpassword
+      R2R_POSTGRES_HOST: postgres
+      R2R_POSTGRES_PORT: 5432
+      R2R_POSTGRES_DBNAME: r2r
+      # Optional: pass generation/embedding endpoints & keys via env or env_file
+      # LMSTUDIO_API_BASE: http://cerebrogen.skhms.com/api
+      # LMSTUDIO_API_KEY: <your_api_token>
+      # OPENAI_API_BASE: http://172.28.139.49/rse/embedding/v1
+      # OPENAI_API_KEY: <your_embedding_api_token>
+    # Optionally include shared env file; values here override env_file
+    # env_file:
+    #   - ./env/r2r.env
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    driver: local

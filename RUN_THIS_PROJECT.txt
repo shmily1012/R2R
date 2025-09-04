@@ -1,70 +1,70 @@
-R2R Quick Start (with Separate Generation and Embedding Bases)
+R2R Quick Start (Linux, with Separate Generation and Embedding Bases)
 
 1) Prerequisites
-- Python 3.10+
+- Python 3.12
 - Postgres database (connection via env vars)
 - API endpoints:
   - Text generation (OpenAI-compatible): MODEL_BASE_URL
   - Embedding (OpenAI-compatible): EMBEDDING_BASE_URL
 
-2) Install
-- Create a virtualenv and install the Python package from ./py
-  - Windows PowerShell:
-    - python -m venv .venv
-    - . .venv/Scripts/Activate.ps1
-  - macOS/Linux:
-    - python -m venv .venv
-    - source .venv/bin/activate
-- Install:
+2) Install (Linux)
+- Create and activate a virtualenv, then install from ./py
+  - python -m venv .venv
+  - source .venv/bin/activate
   - pip install -e ./py
 
-3) Environment Variables
-- Generation (maps your values to this project’s prefixes and clients)
-  - LMSTUDIO_API_BASE = http://cerebrogen.skhms.com/api
-    - Note: If your server requires the /v1 suffix, use .../api/v1
-  - LMSTUDIO_API_KEY = <input your api token>
-  - The model name in r2r.toml is set to lmstudio/llm (maps to TEXT_MODEL_NAME=llm)
-  - Optional tuning via config: temperature/top_p/max_tokens are set in r2r.toml
+3) Environment Variables (Linux shell)
+- Generation (OpenAI-compatible)
+  - export LMSTUDIO_API_BASE=http://cerebrogen.skhms.com/api   # or .../api/v1
+  - export LMSTUDIO_API_KEY="<your api token>"
+  - Note: r2r.toml uses model lmstudio/llm
 
 - Embedding (separate OpenAI-compatible base)
-  - OPENAI_API_BASE = http://172.28.139.49/rse/embedding/v1
-  - OPENAI_API_KEY = <input your embedding api token>
-  - The embedding model in r2r.toml is openai/gte-Qwen2-1.5B-instruct with dimension 1536
+  - export OPENAI_API_BASE=http://172.28.139.49/rse/embedding/v1
+  - export OPENAI_API_KEY="<your embedding api token>"
+  - r2r.toml uses openai/gte-Qwen2-1.5B-instruct with dimension 1536
 
 - Postgres (example)
-  - R2R_POSTGRES_USER=your_user
-  - R2R_POSTGRES_PASSWORD=your_password
-  - R2R_POSTGRES_HOST=your_host
-  - R2R_POSTGRES_PORT=5432
-  - R2R_POSTGRES_DBNAME=your_db
-  - R2R_PROJECT_NAME=your_project_name
+  - export R2R_POSTGRES_USER=your_user
+  - export R2R_POSTGRES_PASSWORD=your_password
+  - export R2R_POSTGRES_HOST=your_host
+  - export R2R_POSTGRES_PORT=5432
+  - export R2R_POSTGRES_DBNAME=your_db
+  - export R2R_PROJECT_NAME=your_project_name
 
 4) Start the API server (local)
-- python -m r2r.serve
-- By default serves on http://0.0.0.0:7272
+- R2R_PORT=8002 python -m r2r.serve
+- Serves on http://0.0.0.0:8002
 
-5) Verify (basic checks)
-- OpenAPI spec: http://localhost:7272/openapi_spec
+- 5) Verify (basic checks)
+- OpenAPI spec (local): http://localhost:8002/openapi_spec
+- OpenAPI spec (Docker dev): http://localhost:8002/openapi_spec
 
 - Completion (text generation)
-  - curl -X POST http://localhost:7272/v3/retrieval/completion \
-      -H "Content-Type: application/json" \
-      -d '{
-            "messages": [{"role":"user","content":"Say hello in Chinese."}],
-            "generation_config": {"model": "lmstudio/llm", "stream": false}
-          }'
+  - Local:  curl -X POST http://localhost:8002/v3/retrieval/completion \
+              -H "Content-Type: application/json" \
+              -d '{"messages":[{"role":"user","content":"Say hello in Chinese."}],"generation_config":{"model":"lmstudio/llm","stream":false}}'
+  - Docker: curl -X POST http://localhost:8002/v3/retrieval/completion \
+              -H "Content-Type: application/json" \
+              -d '{"messages":[{"role":"user","content":"Say hello in Chinese."}],"generation_config":{"model":"lmstudio/llm","stream":false}}'
 
 - Embedding
-  - curl -X POST http://localhost:7272/v3/retrieval/embedding \
-      -H "Content-Type: application/json" \
-      -d '{"text":"What is DeepSeek R1?"}'
+  - Local:  curl -X POST http://localhost:8002/v3/retrieval/embedding \
+              -H "Content-Type: application/json" \
+              -d '{"text":"What is DeepSeek R1?"}'
+  - Docker: curl -X POST http://localhost:8002/v3/retrieval/embedding \
+              -H "Content-Type: application/json" \
+              -d '{"text":"What is DeepSeek R1?"}'
 
-6) Docker Option (optional)
-- Copy the env variables above into docker/env/r2r.env
-  - Include: LMSTUDIO_API_BASE, LMSTUDIO_API_KEY, OPENAI_API_BASE, OPENAI_API_KEY, Postgres vars
-- Start the stack:
-  - docker compose -f docker/compose.full.swarm.yaml up -d
-- Verify at http://localhost:7272/openapi_spec
+6) Docker Dev (Linux)
+- Compose file: docker/compose.dev.yaml (runs Postgres + R2R on port 8002)
+- Option A: Inline env in the compose (edit services.r2r.environment)
+- Option B: Put env in docker/env/r2r.env and uncomment env_file in the compose
+- Start:
+  - cd docker
+  - docker compose -f compose.dev.yaml up -d --build
+- Logs: docker compose -f compose.dev.yaml logs -f
+- Verify: http://localhost:8002/openapi_spec
 
 7) How this project routes models
 - Text generation uses the OpenAICompletionProvider with model prefix lmstudio/...
@@ -88,4 +88,3 @@ R2R Quick Start (with Separate Generation and Embedding Bases)
 10) Next Steps
 - Ingest documents via /v3/documents endpoints, then try /v3/retrieval/rag for RAG answers
 - Tune generation defaults in [completion.generation_config] inside py/r2r/r2r.toml
-
