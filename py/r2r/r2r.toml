@@ -9,13 +9,12 @@ default_max_collections_per_user = 5_000
 default_max_upload_size = 214748364800
 
 # LLM used for internal operations, like deriving conversation names
-# Using an OpenAI-compatible base at LMSTUDIO_API_BASE for text generation
-# e.g. export LMSTUDIO_API_BASE="http://cerebrogen.skhms.com/api"
-fast_llm = "lmstudio/llm"
+# Using local LLM server
+fast_llm = "llm"
 
 # LLM used for user-facing output, like RAG replies
-# Uses the same OpenAI-compatible generation base URL as above
-quality_llm = "lmstudio/llm"
+# Using local LLM server
+quality_llm = "llm"
 
 # LLM used for ingesting visual inputs
 vlm = "openai/gpt-5-2025-08-07"
@@ -70,6 +69,13 @@ provider = "bcrypt"
 provider = "postgres"
 
 [database]
+# Database connection settings
+user = "r2r"
+password = "r2rpassword"
+host = "localhost"
+port = 5432
+db_name = "r2r"
+
 default_collection_name = "Default"
 default_collection_description = "Your default collection."
 collection_summary_prompt = "collection_summary"
@@ -90,22 +96,27 @@ collection_summary_prompt = "collection_summary"
 [embedding]
 # Use LiteLLM for embeddings so we can point to a separate OpenAI-like base URL.
 # Set OPENAI_API_BASE to your embedding server, e.g.:
-#   export OPENAI_API_BASE="http://172.28.139.49/rse/embedding/v1"
-#   export OPENAI_API_KEY="<input your embedding api token>"
+OPENAI_API_BASE="http://athena.skhms.com/rse/embedding/qwen3-4b/v1/"
+OPENAI_API_KEY="rse-s0HBWeEhWUXJx5LI3gNNtJWHdKBOePvRVuh8s3BplYRiT7VZ0N2aMej"
 provider = "litellm"
-base_model = "openai/gte-Qwen2-1.5B-instruct"
-base_dimension = 1536
+base_model = "Qwen-Qwen3-Embedding-4B"
+base_dimension = 384
 # rerank_model = "huggingface/mixedbread-ai/mxbai-rerank-large-v1" # optional reranking model
 batch_size = 128
 concurrent_request_limit = 256
 initial_backoff = 1.0
 quantization_settings = { quantization_type = "FP32" }
+litellm_drop_params = true
+
+# LiteLLM global settings
+[litellm]
+drop_params = true
 
 [completion_embedding]
 # Keep this consistent with [embedding] so vector dimensions match
 provider = "litellm"
-base_model = "openai/gte-Qwen2-1.5B-instruct"
-base_dimension = 1536
+base_model = "Qwen-Qwen3-Embedding-4B"
+base_dimension = 384
 batch_size = 128
 concurrent_request_limit = 256
 

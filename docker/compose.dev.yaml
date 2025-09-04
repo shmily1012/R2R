@@ -35,17 +35,19 @@ services:
       # Database wiring (auto-configured to the postgres service)
       R2R_POSTGRES_USER: r2r
       R2R_POSTGRES_PASSWORD: r2rpassword
-      R2R_POSTGRES_HOST: postgres
+      R2R_POSTGRES_HOST: 127.0.0.1
       R2R_POSTGRES_PORT: 5432
       R2R_POSTGRES_DBNAME: r2r
       # Optional: pass generation/embedding endpoints & keys via env or env_file
-      # OpenAI-compatible chat completions base MUST include /v1
-      LMSTUDIO_API_BASE: http://cerebrogen.skhms.com/api/v1
-      LMSTUDIO_API_KEY: sk-26e7cff418f44686ba5afad4282771a9
+      # Using local LLM server
+      LMSTUDIO_API_BASE: http://localhost:8000/v1
+      LMSTUDIO_API_KEY: '123'
+      
       # OpenAI-compatible embeddings base should be the root that contains /v1
       # Do not include the /embeddings suffix here; the client appends it.
       OPENAI_API_BASE: http://athena.skhms.com/rse/embedding/qwen3-4b/v1
       OPENAI_API_KEY: rse-s0HBWeEhWUXJx5LI3gNNtJWHdKBOePvRVuh8s3BplYRiT7VZ0N2aMej
+      
       R2R_USER_CONFIGS_PATH: /app/user_configs
     # Optionally include shared env file; values here override env_file
     # env_file:
@@ -54,6 +56,7 @@ services:
       - ./user_configs:/app/user_configs
     ports:
       - "8002:8002"
+    network_mode: "host"
     restart: unless-stopped
 
 volumes:
