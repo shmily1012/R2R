@@ -43,10 +43,8 @@ R2R Quick Start (Linux, with Separate Generation and Embedding Bases)
 - Completion (text generation)
   - Local:  curl -X POST http://localhost:8002/v3/retrieval/completion \
               -H "Content-Type: application/json" \
-              -d '{"messages":[{"role":"user","content":"Say hello in Chinese."}],"generation_config":{"model":"lmstudio/llm","stream":false}}'
-  - Docker: curl -X POST http://localhost:8002/v3/retrieval/completion \
-              -H "Content-Type: application/json" \
-              -d '{"messages":[{"role":"user","content":"Say hello in Chinese."}],"generation_config":{"model":"lmstudio/llm","stream":false}}'
+              -d '{"messages":[{"role":"user","content":"Say hello in Chinese."}],"generation_config":{"model":"lmstudio/llm","stream":false, "max_tokens":100}}'
+  - Docker: curl -X POST http://localhost:8002/v3/retrieval/completion -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"Say hello in Chinese."}],"generation_config":{"model":"lmstudio/llm","stream":false, "max_tokens":100}}'
 
 - Embedding
   - Local:  curl -X POST http://localhost:8002/v3/retrieval/embedding \
