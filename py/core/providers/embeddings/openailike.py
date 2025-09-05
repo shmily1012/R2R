@@ -57,15 +57,15 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
         )
 
     def _get_embedding_kwargs(self, **kwargs):
-        # Keep user overrides and drop NaN dimensions
+        # Always omit `dimensions` for OpenAI-like embedding servers
+        # Some servers/models (e.g., Qwen3-Embedding-4B) reject this param.
         model = kwargs.pop("model", None) or self.base_model
-        dims = kwargs.pop("dimensions", self.base_dimension)
-        if isinstance(dims, float) and math.isnan(dims):
-            dims = None
         embedding_kwargs: dict[str, Any] = {"model": model}
-        if dims is not None:
-            embedding_kwargs["dimensions"] = dims
-        embedding_kwargs.update(kwargs)
+        # Copy all user kwargs except 'dimensions'
+        for k, v in kwargs.items():
+            if k == "dimensions":
+                continue
+            embedding_kwargs[k] = v
         return embedding_kwargs
 
     async def _execute_task(self, task: dict[str, Any]) -> list[list[float]]:
@@ -83,6 +83,8 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
                 except Exception:
                     pass
 
+            # Ensure no stray 'dimensions' key is sent
+            kwargs.pop("dimensions", None)
             response = await self.async_client.embeddings.create(
                 input=texts, **kwargs
             )
@@ -133,6 +135,8 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
                 except Exception:
                     pass
 
+            # Ensure no stray 'dimensions' key is sent
+            kwargs.pop("dimensions", None)
             response = self.client.embeddings.create(input=texts, **kwargs)
             return [data.embedding for data in response.data]
         except Exception as e:
