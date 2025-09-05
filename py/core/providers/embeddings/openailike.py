@@ -3,6 +3,11 @@ import math
 import os
 from typing import Any
 
+try:
+    import tiktoken  # type: ignore
+except Exception:  # pragma: no cover
+    tiktoken = None
+
 from openai import AsyncOpenAI, OpenAI
 
 from core.base import (
@@ -52,6 +57,12 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
         self.base_model = config.base_model or "embedding"
         self.base_dimension = config.base_dimension
 
+        # Max input tokens for this embedding server/model (default 32k)
+        self.max_input_tokens: int = int(
+            os.getenv("OPENAI_EMBEDDING_MAX_INPUT_TOKENS")
+            or config.extra_fields.get("max_input_tokens", 32000)
+        )
+
         logger.info(
             f"Initialized OpenAILikeEmbeddingProvider base_url={self.base_url} model={self.base_model}"
         )
@@ -68,6 +79,46 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
             embedding_kwargs[k] = v
         return embedding_kwargs
 
+    def _estimate_tokens(self, text: str) -> int:
+        try:
+            if tiktoken is not None:
+                try:
+                    enc = tiktoken.encoding_for_model(self.base_model)
+                except Exception:
+                    enc = tiktoken.get_encoding("cl100k_base")
+                return len(enc.encode(text))
+            # Fallback heuristic ~4 chars/token
+            return max(1, int(len(text) / 4))
+        except Exception:
+            return len(text) // 4 or 1
+
+    def _truncate_texts_to_limit(self, texts: list[str]) -> list[str]:
+        """Ensure each input stays within the model's context window.
+
+        Uses token estimation with tiktoken when available, otherwise a simple
+        char-per-token heuristic. Truncates by characters conservatively.
+        """
+        if not texts:
+            return texts
+        truncated: list[str] = []
+        char_per_token = 4
+        char_limit = self.max_input_tokens * char_per_token
+        for t in texts:
+            try:
+                tokens = self._estimate_tokens(t)
+                if tokens > self.max_input_tokens:
+                    # Conservative char-based truncation
+                    truncated_text = t[:char_limit]
+                    truncated.append(truncated_text)
+                    logger.warning(
+                        f"Embedding text truncated to ~{self.max_input_tokens} tokens (estimated {tokens})."
+                    )
+                else:
+                    truncated.append(t)
+            except Exception:
+                truncated.append(t[:char_limit])
+        return truncated
+
     async def _execute_task(self, task: dict[str, Any]) -> list[list[float]]:
         texts = task.get("texts")
         if texts is None:
@@ -76,13 +127,8 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
         kwargs = self._get_embedding_kwargs(**task.get("kwargs", {}))
 
         try:
-            # Best-effort truncation if server enforces token limits
-            if kwargs.get("model"):
-                try:
-                    texts = truncate_texts_to_token_limit(texts, kwargs["model"])
-                except Exception:
-                    pass
-
+            # Truncate based on known 32k context window to avoid server errors
+            texts = self._truncate_texts_to_limit(texts)
             # Ensure no stray 'dimensions' key is sent
             kwargs.pop("dimensions", None)
             response = await self.async_client.embeddings.create(
@@ -129,12 +175,8 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
         kwargs = self._get_embedding_kwargs(**task.get("kwargs", {}))
 
         try:
-            if kwargs.get("model"):
-                try:
-                    texts = truncate_texts_to_token_limit(texts, kwargs["model"])
-                except Exception:
-                    pass
-
+            # Truncate based on known 32k context window to avoid server errors
+            texts = self._truncate_texts_to_limit(texts)
             # Ensure no stray 'dimensions' key is sent
             kwargs.pop("dimensions", None)
             response = self.client.embeddings.create(input=texts, **kwargs)
