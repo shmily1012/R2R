@@ -5,6 +5,11 @@ import os
 import sys
 from typing import Optional
 
+try:  # Python 3.11+
+    import tomllib as tomli  # type: ignore
+except Exception:  # pragma: no cover
+    tomli = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -87,9 +92,77 @@ def run_server(
     except Exception as e:
         logger.error(f"Failed to configure logging: {e}")
 
+    # Load select env vars from r2r.toml (do not override already-set env)
+    def _load_env_from_toml(cfg_path: Optional[str]):
+        path_candidates: list[str] = []
+        if cfg_path:
+            path_candidates.append(cfg_path)
+        # Default to package r2r.toml if present
+        path_candidates.append(os.path.join(os.path.dirname(__file__), "r2r.toml"))
+        # Also try CWD
+        path_candidates.append(os.path.join(os.getcwd(), "py", "r2r", "r2r.toml"))
+        path_candidates.append(os.path.join(os.getcwd(), "r2r.toml"))
+
+        existing_path = next((p for p in path_candidates if os.path.isfile(p)), None)
+        if not existing_path:
+            logger.info("No r2r.toml found for env loading; skipping.")
+            return
+        if not tomli:
+            logger.warning("tomllib/tomli not available; cannot load env from TOML.")
+            return
+
+        try:
+            with open(existing_path, "rb") as f:
+                data = tomli.load(f)  # type: ignore
+        except Exception as e:
+            logger.warning(f"Failed to parse {existing_path}: {e}")
+            return
+
+        # Map TOML fields to environment variables
+        mappings: list[tuple[str, Optional[str]]] = []
+        app = data.get("app", {}) if isinstance(data, dict) else {}
+        db = data.get("database", {}) if isinstance(data, dict) else {}
+        embedding = data.get("embedding", {}) if isinstance(data, dict) else {}
+
+        # Project name
+        if app:
+            mappings.append(("R2R_PROJECT_NAME", app.get("project_name")))
+
+        # Database
+        if db:
+            mappings.extend(
+                [
+                    ("R2R_POSTGRES_HOST", db.get("host")),
+                    ("R2R_POSTGRES_PORT", str(db.get("port")) if db.get("port") is not None else None),
+                    ("R2R_POSTGRES_USER", db.get("user")),
+                    ("R2R_POSTGRES_PASSWORD", db.get("password")),
+                    ("R2R_POSTGRES_DBNAME", db.get("db_name")),
+                ]
+            )
+
+        # Embeddings via OpenAI-compatible server (used by litellm)
+        if embedding:
+            mappings.extend(
+                [
+                    ("OPENAI_API_BASE", embedding.get("OPENAI_API_BASE")),
+                    ("OPENAI_API_KEY", embedding.get("OPENAI_API_KEY")),
+                ]
+            )
+
+        set_count = 0
+        for key, val in mappings:
+            if val and not os.getenv(key):
+                os.environ[key] = str(val)
+                set_count += 1
+        logger.info(
+            f"Loaded {set_count} environment variables from {os.path.basename(existing_path)} (non-destructive)."
+        )
+
     try:
 
         async def start():
+            # Ensure env is populated from TOML before building the app
+            _load_env_from_toml(config_path)
             app = await create_app(config_name, config_path, full)
             await app.serve(final_host, final_port)
 
