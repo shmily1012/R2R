@@ -56,7 +56,6 @@ services:
       - ./user_configs:/app/user_configs
     ports:
       - "8002:8002"
-    network_mode: "host"
     restart: unless-stopped
 
 volumes:

@@ -1,0 +1,2 @@
+DeepSeek R1 is a reasoning model. This file is a simple demo.
+RAG combines retrieval with generation to produce grounded answers.
