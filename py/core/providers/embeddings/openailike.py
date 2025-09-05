@@ -164,6 +164,44 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
             logger.error(error_msg)
             raise ValueError(error_msg) from e
 
+    async def async_get_embedding(
+        self,
+        text: str,
+        stage: EmbeddingProvider.Step = EmbeddingProvider.Step.BASE,
+        **kwargs,
+    ) -> list[float]:
+        if stage != EmbeddingProvider.Step.BASE:
+            raise ValueError(
+                "OpenAILikeEmbeddingProvider only supports search stage."
+            )
+
+        task = {
+            "texts": [text],
+            "stage": stage,
+            "kwargs": kwargs,
+        }
+        result = await self._execute_with_backoff_async(task)
+        return result[0]
+
+    def get_embedding(
+        self,
+        text: str,
+        stage: EmbeddingProvider.Step = EmbeddingProvider.Step.BASE,
+        **kwargs,
+    ) -> list[float]:
+        if stage != EmbeddingProvider.Step.BASE:
+            raise ValueError(
+                "OpenAILikeEmbeddingProvider only supports search stage."
+            )
+
+        task = {
+            "texts": [text],
+            "stage": stage,
+            "kwargs": kwargs,
+        }
+        result = self._execute_with_backoff_sync(task)
+        return result[0]
+
     def rerank(
         self,
         query: str,
