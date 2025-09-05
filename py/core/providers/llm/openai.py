@@ -3,6 +3,17 @@ import json
 import os
 from typing import Any
 
+try:
+    import tiktoken  # type: ignore
+except Exception:  # pragma: no cover
+    tiktoken = None  # fallback to heuristic
+
+try:
+    # Optional: use litellm model metadata if available
+    from litellm import get_model_info  # type: ignore
+except Exception:  # pragma: no cover
+    get_model_info = None
+
 from openai import AsyncAzureOpenAI, AsyncOpenAI, OpenAI
 
 from core.base.abstractions import GenerationConfig
@@ -446,6 +457,95 @@ class OpenAICompletionProvider(CompletionProvider):
             args["response_format"] = generation_config.response_format
         return args
 
+    def _estimate_prompt_tokens(self, messages: list[dict], model_name: str) -> int:
+        """Estimate token count of the prompt for safe max_tokens capping.
+
+        Uses tiktoken when available; otherwise falls back to a 4 chars/token heuristic.
+        """
+        try:
+            # Flatten textual content
+            parts: list[str] = []
+            for m in messages:
+                c = m.get("content")
+                if isinstance(c, str):
+                    parts.append(c)
+                elif isinstance(c, list):
+                    for item in c:
+                        if isinstance(item, dict) and item.get("type") == "text":
+                            parts.append(str(item.get("text", "")))
+                        # image_url and other non-text types contribute minimal tokens
+                # else: ignore non-string content
+            text = "\n".join(parts)
+
+            if tiktoken is not None:
+                # Pick an encoding; if model unknown, use cl100k_base as default
+                try:
+                    enc = tiktoken.encoding_for_model(model_name)
+                except Exception:
+                    enc = tiktoken.get_encoding("cl100k_base")
+                return len(enc.encode(text))
+            # Fallback heuristic: ~4 chars/token
+            return max(1, int(len(text) / 4))
+        except Exception:
+            return 1024
+
+    def _get_context_window(self, model_name: str) -> int:
+        """Best-effort retrieval of model max context window."""
+        # Try litellm metadata first
+        if get_model_info is not None:
+            try:
+                info = get_model_info(model=model_name)
+                max_ctx = info.get("max_input_tokens") or info.get("max_tokens")
+                if isinstance(max_ctx, int) and max_ctx > 0:
+                    return max_ctx
+            except Exception:
+                pass
+        # Reasonable defaults
+        name = (model_name or "").lower()
+        if any(k in name for k in ["gpt-4.1", "o3", "gpt-4o", "128k", "131072"]):
+            return 131072
+        if any(k in name for k in ["gpt-4", "32k"]):
+            return 32768
+        if any(k in name for k in ["3.5", "16k"]):
+            return 16384
+        return 8192
+
+    def _apply_smart_max_tokens(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Clamp max_tokens/max_completion_tokens to fit within model context.
+
+        Respects configured value but reduces it when prompt is large.
+        Adds a small safety buffer.
+        """
+        try:
+            model_name: str = args.get("model", "") or ""
+            messages: list[dict] = args.get("messages", [])
+            context_limit = self._get_context_window(model_name)
+            prompt_tokens = self._estimate_prompt_tokens(messages, model_name)
+            safety_buffer = 256
+
+            desired = None
+            key = None
+            if "max_completion_tokens" in args:  # o1/o3-style
+                key = "max_completion_tokens"
+                desired = int(args[key])
+            elif "max_tokens" in args:
+                key = "max_tokens"
+                desired = int(args[key])
+
+            if desired is None:
+                return args
+
+            available = max(1, context_limit - prompt_tokens - safety_buffer)
+            adjusted = max(1, min(desired, available))
+            if adjusted != desired:
+                logger.warning(
+                    f"Capping {key} from {desired} to {adjusted} (prompt={prompt_tokens}, context={context_limit}, buffer={safety_buffer})"
+                )
+                args[key] = adjusted
+        except Exception as e:
+            logger.debug(f"Smart max_tokens capping failed: {e}")
+        return args
+
     async def _execute_task(self, task: dict[str, Any]):
         messages = task["messages"]
         generation_config = task["generation_config"]
@@ -462,6 +562,7 @@ class OpenAICompletionProvider(CompletionProvider):
         args["model"] = model_name
         args["messages"] = processed_messages
         args = {**args, **kwargs}
+        args = self._apply_smart_max_tokens(args)
 
         # Check if we're using a vision-capable model when images are present
         contains_images = any(
@@ -553,6 +654,7 @@ class OpenAICompletionProvider(CompletionProvider):
         args["model"] = model_name
         args["messages"] = processed_messages
         args = {**args, **kwargs}
+        args = self._apply_smart_max_tokens(args)
 
         # Same vision model check as in async version
         contains_images = any(
