@@ -1,4 +1,5 @@
 import logging
+import json
 import os
 from typing import Any
 
@@ -76,6 +77,7 @@ class OpenAICompletionProvider(CompletionProvider):
             "OLLAMA_API_BASE", "http://localhost:11434/v1"
         )
         if ollama_api_base:
+            self._ollama_base_url = ollama_api_base
             self.ollama_client = OpenAI(
                 api_key=os.getenv("OLLAMA_API_KEY", "dummy"),
                 base_url=ollama_api_base,
@@ -91,6 +93,7 @@ class OpenAICompletionProvider(CompletionProvider):
             "LMSTUDIO_API_BASE", "http://localhost:1234/v1"
         )
         if lmstudio_api_base:
+            self._lmstudio_base_url = lmstudio_api_base
             self.lmstudio_client = OpenAI(
                 api_key=os.getenv("LMSTUDIO_API_KEY", "lm-studio"),
                 base_url=lmstudio_api_base,
@@ -129,6 +132,11 @@ class OpenAICompletionProvider(CompletionProvider):
                 ),
             )
             logger.debug("Azure Foundry clients initialized successfully")
+
+        # Stash base URLs for debug logging
+        self._openai_base_url = "https://api.openai.com/v1" if self.openai_client else None
+        self._azure_base_url = azure_api_base if (azure_api_key and azure_api_base) else None
+        self._deepseek_base_url = deepseek_api_base if (os.getenv("DEEPSEEK_API_KEY") and deepseek_api_base) else None
 
         if not any(
             [
@@ -458,6 +466,36 @@ class OpenAICompletionProvider(CompletionProvider):
                     f"Using model {model_name} with images, but it may not support vision"
                 )
 
+        # Log target base URL, model name, and JSON payload for debugging
+        try:
+            base_url = None
+            if client == self.async_lmstudio_client:
+                base_url = getattr(self, "_lmstudio_base_url", None)
+                provider_name = "lmstudio"
+            elif client == self.async_openai_client:
+                base_url = self._openai_base_url
+                provider_name = "openai"
+            elif client == self.async_azure_client:
+                base_url = self._azure_base_url
+                provider_name = "azure-openai"
+            elif client == self.async_deepseek_client:
+                base_url = self._deepseek_base_url
+                provider_name = "deepseek"
+            elif client == self.async_ollama_client:
+                base_url = getattr(self, "_ollama_base_url", None)
+                provider_name = "ollama"
+            elif client == self.async_azure_foundry_client:
+                base_url = os.getenv("AZURE_FOUNDRY_API_ENDPOINT")
+                provider_name = "azure-foundry"
+            else:
+                provider_name = "unknown"
+
+            payload_json = json.dumps({k: v for k, v in args.items() if k != "messages"} | {"messages": args.get("messages", [])}, ensure_ascii=False, default=str)
+            logger.info(f"LLM request target: provider={provider_name} base_url={base_url} model={model_name}")
+            logger.info(f"LLM request payload: {payload_json}")
+        except Exception as log_e:
+            logger.warning(f"Failed to log LLM request debug info: {log_e}")
+
         logger.debug(f"Executing async task with args: {args}")
         try:
             # Same as before...
@@ -510,6 +548,36 @@ class OpenAICompletionProvider(CompletionProvider):
                 logger.warning(
                     f"Using model {model_name} with images, but it may not support vision"
                 )
+
+        # Log target base URL, model name, and JSON payload for debugging (sync)
+        try:
+            base_url = None
+            if client == self.lmstudio_client:
+                base_url = getattr(self, "_lmstudio_base_url", None)
+                provider_name = "lmstudio"
+            elif client == self.openai_client:
+                base_url = self._openai_base_url
+                provider_name = "openai"
+            elif client == self.azure_client:
+                base_url = self._azure_base_url
+                provider_name = "azure-openai"
+            elif client == self.deepseek_client:
+                base_url = self._deepseek_base_url
+                provider_name = "deepseek"
+            elif client == self.ollama_client:
+                base_url = getattr(self, "_ollama_base_url", None)
+                provider_name = "ollama"
+            elif client == self.azure_foundry_client:
+                base_url = os.getenv("AZURE_FOUNDRY_API_ENDPOINT")
+                provider_name = "azure-foundry"
+            else:
+                provider_name = "unknown"
+
+            payload_json = json.dumps({k: v for k, v in args.items() if k != "messages"} | {"messages": args.get("messages", [])}, ensure_ascii=False, default=str)
+            logger.info(f"LLM request target: provider={provider_name} base_url={base_url} model={model_name}")
+            logger.info(f"LLM request payload: {payload_json}")
+        except Exception as log_e:
+            logger.warning(f"Failed to log LLM request debug info (sync): {log_e}")
 
         logger.debug(f"Executing sync OpenAI task with args: {args}")
         try:
