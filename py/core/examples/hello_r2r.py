@@ -5,7 +5,7 @@ client = R2RClient()
 with open("test.txt", "w") as file:
     file.write("John is a person that works at Google.")
 
-client.ingest_files(file_paths=["test.txt"])
+doc = client.documents.create(file_path="test.txt")
 
 # Call RAG directly on an R2R object
 rag_response = client.rag(

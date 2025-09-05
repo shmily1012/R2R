@@ -100,7 +100,7 @@ OPENAI_API_BASE="http://athena.skhms.com/rse/embedding/qwen3-4b/v1/"
 OPENAI_API_KEY="rse-s0HBWeEhWUXJx5LI3gNNtJWHdKBOePvRVuh8s3BplYRiT7VZ0N2aMej"
 provider = "litellm"
 base_model = "Qwen-Qwen3-Embedding-4B"
-base_dimension = 384
+base_dimension = 1536
 # rerank_model = "huggingface/mixedbread-ai/mxbai-rerank-large-v1" # optional reranking model
 batch_size = 128
 concurrent_request_limit = 256
@@ -116,7 +116,7 @@ drop_params = true
 # Keep this consistent with [embedding] so vector dimensions match
 provider = "litellm"
 base_model = "Qwen-Qwen3-Embedding-4B"
-base_dimension = 384
+base_dimension = 1536
 batch_size = 128
 concurrent_request_limit = 256
 

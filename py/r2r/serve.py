@@ -80,7 +80,7 @@ def run_server(
 
     # Fallback to environment or defaults if necessary
     final_host = os.getenv("R2R_HOST", "0.0.0.0")
-    final_port = int(os.getenv("R2R_PORT", "7272"))
+    final_port = int(os.getenv("R2R_PORT", "8002"))
 
     try:
         configure_logging()
