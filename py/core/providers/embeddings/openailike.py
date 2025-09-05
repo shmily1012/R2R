@@ -88,7 +88,34 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
             )
             return [data.embedding for data in response.data]
         except Exception as e:
-            error_msg = f"Error getting embeddings (async): {str(e)}"
+            # Some OpenAI-compatible servers (e.g., Qwen embeddings) do not
+            # support the `dimensions`/matryoshka parameter at all. If the
+            # error indicates this, retry once without `dimensions`.
+            message = str(e)
+            should_retry_without_dims = (
+                ("matryoshka" in message.lower() or "dimensions" in message.lower())
+                and isinstance(kwargs, dict)
+                and "dimensions" in kwargs
+            )
+
+            if should_retry_without_dims:
+                try:
+                    retry_kwargs = dict(kwargs)
+                    retry_kwargs.pop("dimensions", None)
+                    logger.warning(
+                        "Embedding server rejected `dimensions`; retrying without it. model=%s",
+                        retry_kwargs.get("model"),
+                    )
+                    response = await self.async_client.embeddings.create(
+                        input=texts, **retry_kwargs
+                    )
+                    return [data.embedding for data in response.data]
+                except Exception as e2:
+                    error_msg = f"Error getting embeddings (async): {str(e2)}"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg) from e2
+
+            error_msg = f"Error getting embeddings (async): {message}"
             logger.error(error_msg)
             raise ValueError(error_msg) from e
 
@@ -109,7 +136,31 @@ class OpenAILikeEmbeddingProvider(EmbeddingProvider):
             response = self.client.embeddings.create(input=texts, **kwargs)
             return [data.embedding for data in response.data]
         except Exception as e:
-            error_msg = f"Error getting embeddings: {str(e)}"
+            message = str(e)
+            should_retry_without_dims = (
+                ("matryoshka" in message.lower() or "dimensions" in message.lower())
+                and isinstance(kwargs, dict)
+                and "dimensions" in kwargs
+            )
+
+            if should_retry_without_dims:
+                try:
+                    retry_kwargs = dict(kwargs)
+                    retry_kwargs.pop("dimensions", None)
+                    logger.warning(
+                        "Embedding server rejected `dimensions`; retrying without it. model=%s",
+                        retry_kwargs.get("model"),
+                    )
+                    response = self.client.embeddings.create(
+                        input=texts, **retry_kwargs
+                    )
+                    return [data.embedding for data in response.data]
+                except Exception as e2:
+                    error_msg = f"Error getting embeddings: {str(e2)}"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg) from e2
+
+            error_msg = f"Error getting embeddings: {message}"
             logger.error(error_msg)
             raise ValueError(error_msg) from e
 
