@@ -35,7 +35,7 @@ class AppConfig(InnerConfig):
     default_max_documents_per_user: Optional[int] = 100
     default_max_chunks_per_user: Optional[int] = 10_000
     default_max_collections_per_user: Optional[int] = 5
-    default_max_upload_size: int = 2_000_000  # e.g. ~2 MB
+    default_max_upload_size: int = 20_000_000  # e.g. ~20 MB
     quality_llm: Optional[str] = None
     fast_llm: Optional[str] = None
     vlm: Optional[str] = None
@@ -47,8 +47,8 @@ class AppConfig(InnerConfig):
     # These are examples; adjust sizes as needed.
     max_upload_size_by_type: dict[str, int] = {
         # Common text-based formats
-        "txt": 2_000_000,
-        "md": 2_000_000,
+        "txt": 20_000_000,
+        "md": 20_000_000,
         "tsv": 2_000_000,
         "csv": 5_000_000,
         "html": 5_000_000,

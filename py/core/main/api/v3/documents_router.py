@@ -476,7 +476,7 @@ class DocumentsRouter(BaseRouterV3):
                         raise R2RException(
                             status_code=413,  # HTTP 413: Payload Too Large
                             message=(
-                                f"File size exceeds maximum of {max_allowed_size} bytes "
+                                f"File size({content_length} bytes) exceeds maximum of {max_allowed_size} bytes "
                                 f"for extension '{file_ext}'."
                             ),
                         )
