@@ -9,23 +9,24 @@ default_max_collections_per_user = 5_000
 default_max_upload_size = 214748364800
 
 # LLM used for internal operations, like deriving conversation names
-# Using local LLM server
-fast_llm = "llm"
+# Prefer LM Studio locally; model name must exist on your LM Studio server.
+# With prefix "lmstudio/", the base URL is taken from LMSTUDIO_API_BASE.
+fast_llm = "lmstudio/llm"
 
 # LLM used for user-facing output, like RAG replies
 # Using local LLM server
-quality_llm = "llm"
+quality_llm = "lmstudio/llm"
 
 # LLM used for ingesting visual inputs
-vlm = "openai/gpt-5-2025-08-07"
+vlm = "lmstudio/llm"
 
 # LLM used for transcription
 audio_lm = "openai/whisper-1"
 
 # Reasoning model, used for `research` agent
-reasoning_llm = "openai/o3-mini"
+reasoning_llm = "lmstudio/llm"
 # Planning model, used for `research` agent
-planning_llm = "anthropic/claude-3-7-sonnet-20250219"
+planning_llm = "lmstudio/llm"
 
 
 [agent]
@@ -130,6 +131,9 @@ automatic_extraction = true # enable automatic extraction of entities and relati
 vlm_batch_size=20
 max_concurrent_vlm_tasks=20
 vlm_ocr_one_page_per_chunk = true
+
+# Use LM Studio for document summaries during ingestion
+document_summary_model = "lmstudio/llama-3.2-3b-instruct"
 
   [ingestion.chunk_enrichment_settings]
     chunk_enrichment_prompt = "chunk_enrichment"
