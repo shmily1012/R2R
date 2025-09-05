@@ -1,6 +1,8 @@
 [app]
-# app settings are global available like `r2r_config.agent.app`
-# project_name = "r2r_default" # optional, can also set with `R2R_PROJECT_NAME` env var
+# App settings are globally available like `r2r_config.agent.app`
+# Referenced defaults mirror docker/compose.dev.yaml; env vars override.
+# For compose, `R2R_PROJECT_NAME` is set to `r2r_local`.
+project_name = "r2r_local"
 default_max_documents_per_user = 10_000
 default_max_chunks_per_user = 10_000_000
 default_max_collections_per_user = 5_000
@@ -70,10 +72,10 @@ provider = "bcrypt"
 provider = "postgres"
 
 [database]
-# Database connection settings
+# Database connection settings (mirrors docker/compose.dev.yaml)
 user = "r2r"
 password = "r2rpassword"
-host = "localhost"
+host = "127.0.0.1" # compose.dev.yaml uses 127.0.0.1
 port = 5432
 db_name = "r2r"
 
