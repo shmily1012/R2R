@@ -92,17 +92,17 @@ class OpenAICompletionProvider(CompletionProvider):
 
         # Initialize LMStudio clients
         lmstudio_api_base = os.getenv(
-            "LMSTUDIO_API_BASE", "http://localhost:1234/v1"
+            "LMSTUDIO_API_BASE", "http://localhost:8000/v1"
         )
         if lmstudio_api_base:
             self._lmstudio_base_url = lmstudio_api_base
             self._lmstudio_api_key = os.getenv("LMSTUDIO_API_KEY", "lm-studio")
             self.lmstudio_client = OpenAI(
-                api_key=self._lmstudio_api_key,
+                api_key=os.getenv("LMSTUDIO_API_KEY", "1234"),
                 base_url=lmstudio_api_base,
             )
             self.async_lmstudio_client = AsyncOpenAI(
-                api_key=self._lmstudio_api_key,
+                api_key=os.getenv("LMSTUDIO_API_KEY", "1234"),
                 base_url=lmstudio_api_base,
             )
             logger.debug("LMStudio OpenAI clients initialized successfully")
