@@ -133,7 +133,7 @@ max_concurrent_vlm_tasks=20
 vlm_ocr_one_page_per_chunk = true
 
 # Use LM Studio for document summaries during ingestion
-document_summary_model = "lmstudio/llama-3.2-3b-instruct"
+document_summary_model = "lmstudio/llm"
 
   [ingestion.chunk_enrichment_settings]
     chunk_enrichment_prompt = "chunk_enrichment"
