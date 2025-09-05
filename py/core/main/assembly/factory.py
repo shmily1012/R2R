@@ -37,6 +37,7 @@ from core.providers import (
     OllamaEmbeddingProvider,
     OpenAICompletionProvider,
     OpenAIEmbeddingProvider,
+    OpenAILikeEmbeddingProvider,
     PostgresDatabaseProvider,
     R2RAuthProvider,
     R2RCompletionProvider,
@@ -255,6 +256,7 @@ class R2RProviderFactory:
         LiteLLMEmbeddingProvider
         | OllamaEmbeddingProvider
         | OpenAIEmbeddingProvider
+        | OpenAILikeEmbeddingProvider
     ):
         embedding_provider: Optional[EmbeddingProvider] = None
 
@@ -276,6 +278,11 @@ class R2RProviderFactory:
             from core.providers import OllamaEmbeddingProvider
 
             embedding_provider = OllamaEmbeddingProvider(embedding)
+
+        elif embedding.provider == "openailike":
+            from core.providers import OpenAILikeEmbeddingProvider
+
+            embedding_provider = OpenAILikeEmbeddingProvider(embedding)
 
         else:
             raise ValueError(

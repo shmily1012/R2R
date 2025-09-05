@@ -146,6 +146,8 @@ def run_server(
                 [
                     ("OPENAI_API_BASE", embedding.get("OPENAI_API_BASE")),
                     ("OPENAI_API_KEY", embedding.get("OPENAI_API_KEY")),
+                    ("OPENAI_API_LIKE_BASE", embedding.get("OPENAI_API_LIKE_BASE")),
+                    ("OPENAI_API_LIKE_KEY", embedding.get("OPENAI_API_LIKE_KEY")),
                 ]
             )
 
