@@ -60,7 +60,8 @@ request_timeout = 60
   # Defaults for your TEXT model
   temperature = 0.7
   top_p = 0.8
-  max_tokens_to_sample = 131072
+  # 131072
+  max_tokens_to_sample = 12000 
   stream = false
   # Optional extra args your server might accept (not all providers use these)
   add_generation_kwargs = { top_k = 20, repetition_penalty = 1.05, presence_penalty = 1.5 }
@@ -101,7 +102,7 @@ collection_summary_prompt = "collection_summary"
 # Set OPENAI_API_BASE to your embedding server, e.g.:
 OPENAI_API_BASE="http://athena.skhms.com/rse/embedding/qwen3-4b/v1/"
 OPENAI_API_KEY="rse-s0HBWeEhWUXJx5LI3gNNtJWHdKBOePvRVuh8s3BplYRiT7VZ0N2aMej"
-provider = "litellm"
+provider = "openai"
 base_model = "Qwen-Qwen3-Embedding-4B"
 base_dimension = 1536
 # rerank_model = "huggingface/mixedbread-ai/mxbai-rerank-large-v1" # optional reranking model

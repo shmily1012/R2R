@@ -79,7 +79,7 @@ class OpenAICompletionProvider(CompletionProvider):
         )
         if ollama_api_base:
             self._ollama_base_url = ollama_api_base
-            self._ollama_api_key = os.getenv("OLLAMA_API_KEY", "1234")
+            self._ollama_api_key = os.getenv("OLLAMA_API_KEY", "123")
             self.ollama_client = OpenAI(
                 api_key=self._ollama_api_key,
                 base_url=ollama_api_base,
@@ -96,13 +96,13 @@ class OpenAICompletionProvider(CompletionProvider):
         )
         if lmstudio_api_base:
             self._lmstudio_base_url = lmstudio_api_base
-            self._lmstudio_api_key = os.getenv("LMSTUDIO_API_KEY", "lm-studio")
+            self._lmstudio_api_key = os.getenv("LMSTUDIO_API_KEY", "123")
             self.lmstudio_client = OpenAI(
-                api_key=os.getenv("LMSTUDIO_API_KEY", "1234"),
+                api_key=os.getenv("LMSTUDIO_API_KEY", "123"),
                 base_url=lmstudio_api_base,
             )
             self.async_lmstudio_client = AsyncOpenAI(
-                api_key=os.getenv("LMSTUDIO_API_KEY", "1234"),
+                api_key=os.getenv("LMSTUDIO_API_KEY", "123"),
                 base_url=lmstudio_api_base,
             )
             logger.debug("LMStudio OpenAI clients initialized successfully")
@@ -514,7 +514,8 @@ class OpenAICompletionProvider(CompletionProvider):
                 provider_name = "unknown"
 
             payload_json = json.dumps({k: v for k, v in args.items() if k != "messages"} | {"messages": args.get("messages", [])}, ensure_ascii=False, default=str)
-            logger.info(f"LLM request target: provider={provider_name} base_url={base_url} model={model_name} api_key={self._mask_token(api_key)}")
+            # logger.info(f"LLM request target: provider={provider_name} base_url={base_url} model={model_name} api_key={self._mask_token(api_key)}")
+            logger.info(f"LLM request target: provider={provider_name} base_url={base_url} model={model_name} api_key={api_key}")
             logger.info(f"LLM request payload: {payload_json}")
         except Exception as log_e:
             logger.warning(f"Failed to log LLM request debug info: {log_e}")
@@ -604,7 +605,7 @@ class OpenAICompletionProvider(CompletionProvider):
                 provider_name = "unknown"
 
             payload_json = json.dumps({k: v for k, v in args.items() if k != "messages"} | {"messages": args.get("messages", [])}, ensure_ascii=False, default=str)
-            logger.info(f"LLM request target: provider={provider_name} base_url={base_url} model={model_name} api_key={self._mask_token(api_key)}")
+            logger.info(f"LLM request target: provider={provider_name} base_url={base_url} model={model_name} api_key={api_key}")
             logger.info(f"LLM request payload: {payload_json}")
         except Exception as log_e:
             logger.warning(f"Failed to log LLM request debug info (sync): {log_e}")
