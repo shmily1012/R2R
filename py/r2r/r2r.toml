@@ -123,7 +123,7 @@ drop_params = true
 
 [completion_embedding]
 # Keep this consistent with [embedding] so vector dimensions match
-provider = "litellm"
+provider = "openailike"
 base_model = "Qwen-Qwen3-Embedding-4B"
 base_dimension = 2560
 batch_size = 128
