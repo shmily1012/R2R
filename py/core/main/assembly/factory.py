@@ -376,6 +376,7 @@ class R2RProviderFactory:
             LiteLLMEmbeddingProvider
             | OpenAIEmbeddingProvider
             | OllamaEmbeddingProvider
+            | OpenAILikeEmbeddingProvider
         ] = None,
         ingestion_provider_override: Optional[
             R2RIngestionProvider | UnstructuredIngestionProvider

@@ -102,13 +102,12 @@ collection_summary_prompt = "collection_summary"
 # Either pair can be used by providers:
 # - OPENAI_API_BASE + OPENAI_API_KEY (legacy)
 # - OPENAI_API_LIKE_BASE + OPENAI_API_LIKE_KEY (preferred for local servers)
-OPENAI_API_BASE="http://athena.skhms.com/rse/embedding/qwen3-4b/v1/"
-OPENAI_API_KEY="rse-s0HBWeEhWUXJx5LI3gNNtJWHdKBOePvRVuh8s3BplYRiT7VZ0N2aMej"
-OPENAI_API_LIKE_BASE="http://localhost:8000/v1"
-OPENAI_API_LIKE_KEY="123"
+OPENAI_API_LIKE_BASE="http://athena.skhms.com/rse/embedding/qwen3-4b/v1/"
+OPENAI_API_LIKE_KEY="rse-s0HBWeEhWUXJx5LI3gNNtJWHdKBOePvRVuh8s3BplYRiT7VZ0N2aMej"
+
 
 # Choose embedding provider: "openai", "litellm", "ollama", or "openailike"
-provider = "openai"
+provider = "openailike"
 base_model = "Qwen-Qwen3-Embedding-4B"
 base_dimension = 1536
 # rerank_model = "huggingface/mixedbread-ai/mxbai-rerank-large-v1" # optional reranking model
