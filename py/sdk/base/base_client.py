@@ -7,7 +7,7 @@ class BaseClient:
     def __init__(
         self,
         base_url: str | None = None,
-        timeout: float = 300.0,
+        timeout: float = 3000.0,
     ):
         self.base_url = base_url or os.getenv(
             "R2R_API_BASE", "http://localhost:7272"

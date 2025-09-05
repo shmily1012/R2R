@@ -62,8 +62,7 @@ R2R Quick Start (Linux, with Separate Generation and Embedding Bases)
 - Option A: Inline env in the compose (edit services.r2r.environment)
 - Option B: Put env in docker/env/r2r.env and uncomment env_file in the compose
 - Start:
-  - cd docker
-  - docker compose -f compose.dev.yaml up -d --build
+  - cd docker && docker compose -f compose.dev.yaml up -d --build
 - Logs: docker compose -f compose.dev.yaml logs -f
 - Verify: http://localhost:8002/openapi_spec
 

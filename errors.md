@@ -1,40 +1,18 @@
-2025-09-05 14:31:17 - ERROR - Async task execution failed: Error code: 400 - {'object': 'error', 'message': "This model's maximum context length is 131072 tokens. However, you requested 133475 tokens (13475 in the messages, 120000 in the completion). Please reduce the length of the messages or completion.", 'type': 'BadRequestError', 'param': None, 'code': 400}
-2025-09-05 14:31:17 - WARNING - Request failed (attempt 3): Error code: 400 - {'object': 'error', 'message': "This model's maximum context length is 131072 tokens. However, you requested 133475 tokens (13475 in the messages, 120000 in the completion). Please reduce the length of the messages or completion.", 'type': 'BadRequestError', 'param': None, 'code': 400}
-2025-09-05 14:31:17 - ERROR - Error in base endpoint create_document() - 500: Error during ingestion: Error code: 400 - {'object': 'error', 'message': "This model's maximum context length is 131072 tokens. However, you requested 133475 tokens (13475 in the messages, 120000 in the completion). Please reduce the length of the messages or completion.", 'type': 'BadRequestError', 'param': None, 'code': 400}
-Traceback (most recent call last):
-  File "/mnt/nvme1/workspace/R2R/py/core/main/orchestration/simple/ingestion_workflow.py", line 72, in ingest_files
-    await service.augment_document_info(document_info, extractions)
-  File "/mnt/nvme1/workspace/R2R/py/core/main/services/ingestion_service.py", line 309, in augment_document_info
-    response = await self.providers.llm.aget_completion(
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/nvme1/workspace/R2R/py/core/base/providers/llm.py", line 181, in aget_completion
-    response = await self._execute_with_backoff_async(
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/nvme1/workspace/R2R/py/core/base/providers/llm.py", line 68, in _execute_with_backoff_async
-    return await self._execute_task(task)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/nvme1/workspace/R2R/py/core/providers/llm/openai.py", line 532, in _execute_task
-    response = await client.chat.completions.create(**args)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/root/.pyenv/versions/r2r/lib/python3.12/site-packages/openai/resources/chat/completions/completions.py", line 2583, in create
-    return await self._post(
-           ^^^^^^^^^^^^^^^^^
-  File "/root/.pyenv/versions/r2r/lib/python3.12/site-packages/openai/_base_client.py", line 1794, in post
-    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/root/.pyenv/versions/r2r/lib/python3.12/site-packages/openai/_base_client.py", line 1594, in request
-    raise self._make_status_error_from_response(err.response) from None
-openai.BadRequestError: Error code: 400 - {'object': 'error', 'message': "This model's maximum context length is 131072 tokens. However, you requested 133475 tokens (13475 in the messages, 120000 in the completion). Please reduce the length of the messages or completion.", 'type': 'BadRequestError', 'param': None, 'code': 400}
+2025-09-05 15:40:04 - INFO - LLM request payload: {"model": "llm", "stream": false, "max_tokens": 7629, "temperature": 0.7, "top_p": 0.8, "messages": [{"role": "system", "content": "You are a helpful agent."}, {"role": "user", "content": "## Task:\nYour task is to generate a descriptive summary of the document that follows. Your objective is to return a summary that is roughly 10% of the input document size while retaining as many key points as possible. Your response should begin with `The document contains `.\n### Document:\nDocument Title: CONTRIBUTING.md\nDocument Metadata: {\"version\": \"v0\"}\nDocument Text:\nR2R Contribution Guide\nQuick Start\n\nPre-Discussion: Feel free to propose your ideas via issues, Discord if you want to get early feedback.\nCode of Conduct: Adhere to our Code of Conduct in all interactions.\nPull Requests (PRs): Follow the PR process for contributions.\n\nPull Request Process\n\nDependencies: Ensure all dependencies are necessary and documented.\nDocumentation: Update README.md with any changes to interfaces, including new environment variables, exposed ports, and other relevant details.\nVersioning: Increment version numbers in examples and README.md following SemVer.\nReview: A PR can be merged after receiving approval from at least two other developers. If you lack merge permissions, request a review for merging.\n\nAttribution\nThis Code of Conduct adapts from the Contributor Covenant, version 1.4.\n\n### Query:\nReminder: Your task is to generate a descriptive summary of the document that was given. Your objective is to return a summary that is roughly 10% of the input document size while retaining as many key points as possible. Your response should begin with `The document contains `.\n## Response:\n"}]}
 
-The above exception was the direct cause of the following exception:
+Provider List: https://docs.litellm.ai/docs/providers
 
-Traceback (most recent call last):
-  File "/mnt/nvme1/workspace/R2R/py/core/main/api/v3/base_router.py", line 51, in wrapper
-    func_result = await func(*args, **kwargs)
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/nvme1/workspace/R2R/py/core/main/api/v3/documents_router.py", line 572, in create_document
-    await simple_ingestor["ingest-files"](workflow_input)
-  File "/mnt/nvme1/workspace/R2R/py/core/main/orchestration/simple/ingestion_workflow.py", line 237, in ingest_files
-    raise HTTPException(
-fastapi.exceptions.HTTPException: 500: Error during ingestion: Error code: 400 - {'object': 'error', 'message': "This model's maximum context length is 131072 tokens. However, you requested 133475 tokens (13475 in the messages, 120000 in the completion). Please reduce the length of the messages or completion.", 'type': 'BadRequestError', 'param': None, 'code': 400}
-2025-09-05 14:31:17 - ERROR - 127.0.0.1:47978 - "POST /v3/documents HTTP/1.1" 500
+
+Provider List: https://docs.litellm.ai/docs/providers
+
+2025-09-05 15:40:06 - WARNING - Failed to truncate texts: This model isn't mapped yet. model=Qwen-Qwen3-Embedding-4B, custom_llm_provider=None. Add it here - https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json.
+
+Provider List: https://docs.litellm.ai/docs/providers
+
+
+Provider List: https://docs.litellm.ai/docs/providers
+
+2025-09-05 15:40:07 - WARNING - Failed to truncate texts: This model isn't mapped yet. model=Qwen-Qwen3-Embedding-4B, custom_llm_provider=None. Add it here - https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json.
+2025-09-05 15:40:07 - INFO - Successful ingestion for document_id: 15df7e62-584a-5257-ae77-91bf10d27028, with vector count: 1
+2025-09-05 15:40:07 - WARNING - Automatic extraction not yet implemented for `simple` ingestion workflows.
+2025-09-05 15:40:07 - INFO - 127.0.0.1:38290 - "POST /v3/documents HTTP/1.1" 202
