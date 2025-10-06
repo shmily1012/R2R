@@ -192,7 +192,7 @@ services:
     image: sciphiai/r2r:latest
     container_name: r2r_app
     ports:
-      - "7272:8002"
+      - "8002:8002"
     env_file:
       - ./env/r2r-full.env
     environment:
