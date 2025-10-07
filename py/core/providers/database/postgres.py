@@ -89,8 +89,12 @@ class PostgresDatabaseProvider(DatabaseProvider):
         ]
 
         for attr, env_var in env_vars:
-            if value := (getattr(config, attr) or os.getenv(env_var)):
+            env_value = os.getenv(env_var)
+            config_value = getattr(config, attr)
+            value = env_value or config_value
+            if value:
                 setattr(self, attr, value)
+                setattr(self.config, attr, value)
             else:
                 raise ValueError(
                     f"Error, please set a valid {env_var} environment variable or set a '{attr}' in the 'database' settings of your `r2r.toml`."
