@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
@@ -34,6 +34,7 @@ class R2RApp:
         ),
         services: R2RServices,
         providers: R2RProviders,
+        openai_router: APIRouter | None,
         chunks_router: ChunksRouter,
         collections_router: CollectionsRouter,
         conversations_router: ConversationsRouter,
@@ -50,6 +51,7 @@ class R2RApp:
         self.config = config
         self.services = services
         self.providers = providers
+        self.openai_router = openai_router
         self.chunks_router = chunks_router
         self.collections_router = collections_router
         self.conversations_router = conversations_router
@@ -78,6 +80,8 @@ class R2RApp:
         self._apply_middleware()
 
     def _setup_routes(self):
+        if self.openai_router:
+            self.app.include_router(self.openai_router, prefix="/v1")
         self.app.include_router(self.chunks_router, prefix="/v3")
         self.app.include_router(self.collections_router, prefix="/v3")
         self.app.include_router(self.conversations_router, prefix="/v3")

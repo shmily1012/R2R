@@ -11,6 +11,7 @@ from ..api.v3.graph_router import GraphRouter
 from ..api.v3.indices_router import IndicesRouter
 from ..api.v3.prompts_router import PromptsRouter
 from ..api.v3.retrieval_router import RetrievalRouter
+from ..api.openai_router import OpenAIRouter
 from ..api.v3.system_router import SystemRouter
 from ..api.v3.users_router import UsersRouter
 from ..app import R2RApp
@@ -79,6 +80,11 @@ class R2RBuilder:
         await services.maintenance.initialize()
 
         routers = {
+            "openai_router": OpenAIRouter(
+                providers=providers,
+                services=services,
+                config=self.config,
+            ).get_router(),
             "chunks_router": ChunksRouter(
                 providers=providers,
                 services=services,

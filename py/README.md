@@ -104,6 +104,20 @@ client.documents.create(file_path="/path/to/file")
 client.documents.list()
 ```
 
+### OpenAI-Compatible Gateway
+
+R2R also exposes a lightweight OpenAI-compatible surface on `/v1/*`.  Point
+OpenWebUI (or any OpenAI client) at `http://<r2r-host>:7272/v1` with your R2R
+API key to call:
+
+- `GET /v1/models` for model discovery (mirrors the configured R2R models)
+- `POST /v1/chat/completions` for chat responses, including streaming support
+- `POST /v1/embeddings` for vector generation (float encoding only)
+
+All requests reuse the existing R2R authentication headers (Bearer token or
+`X-API-Key`), so you can connect OpenWebUI as a tool or workspace without extra
+configuration.
+
 
 ## Key Features
 
