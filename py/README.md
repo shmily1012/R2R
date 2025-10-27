@@ -113,6 +113,7 @@ API key to call:
 - `GET /v1/models` for model discovery (mirrors the configured R2R models)
 - `POST /v1/chat/completions` for chat responses, including streaming support
 - `POST /v1/embeddings` for vector generation (float encoding only)
+- Chat completions run the full `/v3/retrieval/rag` pipeline under the hood, so answers include retrieval context and citation metadata.
 - The default published model id is `ddr4_rag`; override it with `R2R_OPENAI_MODEL_ALIAS` if you want a different name presented to OpenAI-compatible clients.
 
 All requests reuse the existing R2R authentication headers (Bearer token or

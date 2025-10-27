@@ -3,11 +3,12 @@ import os
 import time
 from collections.abc import Iterable
 from typing import Any, AsyncGenerator, Optional
+from uuid import uuid4
 
 from fastapi import Body, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from core.base import GenerationConfig, Message, R2RException
+from core.base import GenerationConfig, R2RException, SearchSettings
 
 from .v3.base_router import BaseRouterV3
 
@@ -64,36 +65,54 @@ class OpenAIRouter(BaseRouterV3):
                         400, "`messages` must be a non-empty list."
                     )
 
-                model = self._resolve_model_id(payload.get("model"))
+                stream = bool(payload.get("stream", False))
+                metadata = payload.get("metadata") or {}
+                if not isinstance(metadata, dict):
+                    metadata = {}
+
+                query = metadata.get("query") or self._extract_user_query(messages)
+                if not query:
+                    return self._error_response(
+                        400,
+                        "Unable to determine the user query for retrieval-augmented completion.",
+                    )
+
+                model = self._resolve_model_id(
+                    payload.get("model") or self._default_llm_model()
+                )
                 if not model:
                     return self._error_response(
                         400,
                         "No model provided and no default model is configured.",
                     )
 
-                stream = bool(payload.get("stream", False))
                 generation_config = self._build_generation_config(payload, model)
-                message_objects = [Message(**message) for message in messages]
-                extra_kwargs = self._completion_extra_kwargs(payload)
+                generation_config.stream = False
+
+                search_settings = self._extract_search_settings(metadata)
+                include_web_search = self._coerce_bool(
+                    metadata.get("include_web_search", False)
+                )
+                include_title_if_available = self._coerce_bool(
+                    metadata.get("include_title_if_available", False)
+                )
+                task_prompt = metadata.get("task_prompt")
+
+                rag_response = await self.services.retrieval.rag(
+                    query=query,
+                    search_settings=search_settings,
+                    rag_generation_config=generation_config,
+                    task_prompt=task_prompt,
+                    include_title_if_available=include_title_if_available,
+                    include_web_search=include_web_search,
+                )
 
                 if stream:
-                    return await self._stream_chat_completion(
-                        message_objects, generation_config, extra_kwargs
-                    )
+                    return await self._stream_rag_completion(rag_response, model)
 
-                completion = await self.services.retrieval.completion(
-                    messages=message_objects,
-                    generation_config=generation_config,
-                    **extra_kwargs,
+                response_payload = self._build_rag_chat_completion(
+                    rag_response, model
                 )
-                response_payload = completion.results.model_dump(
-                    exclude_none=True
-                )
-                alias_model = self._alias_from_actual(
-                    response_payload.get("model")
-                )
-                if alias_model:
-                    response_payload["model"] = alias_model
                 return JSONResponse(content=response_payload)
 
             except R2RException as exc:
@@ -168,27 +187,48 @@ class OpenAIRouter(BaseRouterV3):
                     500, str(exc), type(exc).__name__ or "internal_error"
                 )
 
-    async def _stream_chat_completion(
+    async def _stream_rag_completion(
         self,
-        messages: list[Message],
-        generation_config: GenerationConfig,
-        extra_kwargs: dict[str, Any],
+        rag_response: Any,
+        actual_model: str,
     ) -> StreamingResponse:
+        answer = self._extract_answer(rag_response)
+        alias_model = self._alias_from_actual(actual_model) or actual_model
+        completion_id = self._generate_completion_id()
+        created = int(time.time())
+        usage = self._extract_usage(rag_response)
+        rag_metadata = self._build_rag_metadata(rag_response)
+        chunks = self._chunk_answer(answer)
+
         async def event_source() -> AsyncGenerator[str, None]:
             try:
-                stream = self.providers.llm.aget_completion_stream(
-                    messages=[message.to_dict() for message in messages],
-                    generation_config=generation_config,
-                    **extra_kwargs,
+                initial_payload = self._stream_payload(
+                    completion_id,
+                    created,
+                    alias_model,
+                    {"role": "assistant"},
                 )
+                yield f"data: {json.dumps(initial_payload, ensure_ascii=False)}\n\n"
 
-                async for chunk in stream:
-                    payload = chunk.model_dump(exclude_none=True)
-                    alias_model = self._alias_from_actual(payload.get("model"))
-                    if alias_model:
-                        payload["model"] = alias_model
+                for piece in chunks:
+                    payload = self._stream_payload(
+                        completion_id,
+                        created,
+                        alias_model,
+                        {"content": piece},
+                    )
                     yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
+                final_payload = self._stream_payload(
+                    completion_id,
+                    created,
+                    alias_model,
+                    {},
+                    finish_reason="stop",
+                    usage=usage,
+                    rag_metadata=rag_metadata,
+                )
+                yield f"data: {json.dumps(final_payload, ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
             except R2RException as exc:
                 error_payload = {
@@ -320,6 +360,173 @@ class OpenAIRouter(BaseRouterV3):
                 return alias
         return None
 
+    def _extract_user_query(self, messages: list[Any]) -> Optional[str]:
+        for message in reversed(messages):
+            if not isinstance(message, dict):
+                continue
+            if message.get("role") != "user":
+                continue
+            content = message.get("content")
+            flattened = self._flatten_message_content(content)
+            if flattened:
+                return flattened.strip()
+        return None
+
+    def _flatten_message_content(self, content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts: list[str] = []
+            for item in content:
+                if isinstance(item, dict):
+                    if item.get("type") == "text":
+                        value = (
+                            item.get("text")
+                            or item.get("value")
+                            or item.get("content")
+                        )
+                        if value:
+                            parts.append(str(value))
+                    elif "content" in item:
+                        parts.append(str(item["content"]))
+                elif isinstance(item, str):
+                    parts.append(item)
+            return "".join(parts)
+        if content is not None:
+            return str(content)
+        return ""
+
+    def _coerce_bool(self, value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in {"true", "1", "yes", "y", "on"}
+        if isinstance(value, (int, float)):
+            return value != 0
+        return bool(value)
+
+    def _extract_search_settings(
+        self, metadata: dict[str, Any]
+    ) -> SearchSettings:
+        candidate = metadata.get("search_settings")
+        if isinstance(candidate, dict):
+            try:
+                return SearchSettings(**candidate)
+            except Exception:
+                pass
+        return SearchSettings()
+
+    def _extract_answer(self, rag_response: Any) -> str:
+        answer = getattr(rag_response, "generated_answer", None)
+        if not answer:
+            answer = getattr(rag_response, "completion", None)
+        return answer or ""
+
+    def _extract_usage(self, rag_response: Any) -> dict[str, int]:
+        metadata = getattr(rag_response, "metadata", {}) or {}
+        usage = metadata.get("usage") if isinstance(metadata, dict) else None
+        result = {}
+        if isinstance(usage, dict):
+            for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                value = usage.get(key)
+                if isinstance(value, int):
+                    result[key] = value
+        if result:
+            return result
+        return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+    def _build_rag_metadata(self, rag_response: Any) -> dict[str, Any]:
+        extra: dict[str, Any] = {}
+        citations = getattr(rag_response, "citations", None)
+        if citations:
+            extra["citations"] = [
+                citation.as_dict()
+                if hasattr(citation, "as_dict")
+                else citation.dict()
+                for citation in citations
+            ]
+        search_results = getattr(rag_response, "search_results", None)
+        if search_results:
+            try:
+                extra["search_results"] = search_results.as_dict()
+            except AttributeError:
+                try:
+                    extra["search_results"] = search_results.to_dict()
+                except AttributeError:
+                    extra["search_results"] = search_results
+        metadata = getattr(rag_response, "metadata", None)
+        if metadata:
+            extra["metadata"] = metadata
+        return extra
+
+    def _chunk_answer(self, text: str, chunk_size: int = 256) -> list[str]:
+        if not text:
+            return []
+        return [
+            text[i : i + chunk_size] for i in range(0, len(text), chunk_size)
+        ]
+
+    def _stream_payload(
+        self,
+        completion_id: str,
+        created: int,
+        model: str,
+        delta: dict[str, Any],
+        finish_reason: Optional[str] = None,
+        usage: Optional[dict[str, Any]] = None,
+        rag_metadata: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        choice: dict[str, Any] = {
+            "index": 0,
+            "delta": delta,
+            "finish_reason": finish_reason,
+        }
+        payload: dict[str, Any] = {
+            "id": completion_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model,
+            "choices": [choice],
+        }
+        if usage is not None:
+            payload["usage"] = usage
+        if rag_metadata and finish_reason:
+            payload["rag"] = rag_metadata
+        return payload
+
+    def _generate_completion_id(self) -> str:
+        return f"chatcmpl-{uuid4().hex}"
+
+    def _build_rag_chat_completion(
+        self,
+        rag_response: Any,
+        actual_model: str,
+    ) -> dict[str, Any]:
+        alias_model = self._alias_from_actual(actual_model) or actual_model
+        answer = self._extract_answer(rag_response)
+        usage = self._extract_usage(rag_response)
+        rag_metadata = self._build_rag_metadata(rag_response)
+        payload = {
+            "id": self._generate_completion_id(),
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": alias_model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": answer,
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": usage,
+        }
+        if rag_metadata:
+            payload["rag"] = rag_metadata
+        return payload
+
     def _build_generation_config(
         self, payload: dict[str, Any], model: str
     ) -> GenerationConfig:
@@ -341,28 +548,6 @@ class OpenAIRouter(BaseRouterV3):
 
         cleaned = {k: v for k, v in gen_kwargs.items() if v is not None}
         return GenerationConfig(**cleaned)
-
-    def _completion_extra_kwargs(
-        self, payload: dict[str, Any]
-    ) -> dict[str, Any]:
-        allowed_keys = {
-            "frequency_penalty",
-            "presence_penalty",
-            "logit_bias",
-            "stop",
-            "n",
-            "user",
-            "function_call",
-            "tool_choice",
-            "metadata",
-            "parallel_tool_calls",
-            "seed",
-            "stream_options",
-            "service_tier",
-            "top_logprobs",
-            "logprobs",
-        }
-        return {k: payload[k] for k in allowed_keys if k in payload}
 
     def _normalize_embedding_inputs(
         self, raw_input: Any
