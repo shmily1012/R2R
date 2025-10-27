@@ -3,7 +3,7 @@ import os
 import time
 from collections.abc import Iterable
 from typing import Any, AsyncGenerator, Optional
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import Body, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -360,6 +360,23 @@ class OpenAIRouter(BaseRouterV3):
                 return alias
         return None
 
+    def _to_serializable(self, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: self._to_serializable(val) for key, val in value.items()
+            }
+        if isinstance(value, (list, tuple, set)):
+            return [self._to_serializable(item) for item in value]
+        if isinstance(value, UUID):
+            return str(value)
+        if hasattr(value, "model_dump"):
+            return self._to_serializable(value.model_dump())
+        if hasattr(value, "to_dict"):
+            return self._to_serializable(value.to_dict())
+        if hasattr(value, "as_dict"):
+            return self._to_serializable(value.as_dict())
+        return value
+
     def _extract_user_query(self, messages: list[Any]) -> Optional[str]:
         for message in reversed(messages):
             if not isinstance(message, dict):
@@ -457,7 +474,7 @@ class OpenAIRouter(BaseRouterV3):
         metadata = getattr(rag_response, "metadata", None)
         if metadata:
             extra["metadata"] = metadata
-        return extra
+        return self._to_serializable(extra)
 
     def _chunk_answer(self, text: str, chunk_size: int = 256) -> list[str]:
         if not text:
@@ -492,7 +509,7 @@ class OpenAIRouter(BaseRouterV3):
             payload["usage"] = usage
         if rag_metadata and finish_reason:
             payload["rag"] = rag_metadata
-        return payload
+        return self._to_serializable(payload)
 
     def _generate_completion_id(self) -> str:
         return f"chatcmpl-{uuid4().hex}"
@@ -525,7 +542,7 @@ class OpenAIRouter(BaseRouterV3):
         }
         if rag_metadata:
             payload["rag"] = rag_metadata
-        return payload
+        return self._to_serializable(payload)
 
     def _build_generation_config(
         self, payload: dict[str, Any], model: str
