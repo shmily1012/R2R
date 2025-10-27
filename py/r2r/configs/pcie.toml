@@ -1,0 +1,8 @@
+[app]
+project_name = "r2r_pcie"
+default_collection_name = "PCIe"
+default_collection_description = "PCI Express knowledge base."
+
+[database]
+db_name = "r2r_pcie"
+

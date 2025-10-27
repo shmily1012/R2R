@@ -1,0 +1,8 @@
+[app]
+project_name = "r2r_ddr4"
+default_collection_name = "DDR4"
+default_collection_description = "DDR4 memory knowledge base."
+
+[database]
+db_name = "r2r_ddr4"
+

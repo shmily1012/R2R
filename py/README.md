@@ -120,6 +120,20 @@ All requests reuse the existing R2R authentication headers (Bearer token or
 `X-API-Key`), so you can connect OpenWebUI as a tool or workspace without extra
 configuration.
 
+### Domain-Specific Launch Scripts
+
+Need to run multiple knowledge bases on one machine? Minimal overrides live in `py/r2r/configs/`. Start the dedicated instances with:
+
+```bash
+# DDR4 knowledge base (defaults to port 8003)
+./scripts/serve_ddr4.sh
+
+# PCIe knowledge base (defaults to port 8002)
+./scripts/serve_pcie.sh
+```
+
+Each script wires up a separate config (unique project name + Postgres database) before delegating to `python -m r2r.serve`. Override the port by exporting `R2R_PORT` or append additional CLI flags—they are forwarded.
+
 
 ## Key Features
 
