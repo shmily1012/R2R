@@ -113,6 +113,7 @@ API key to call:
 - `GET /v1/models` for model discovery (mirrors the configured R2R models)
 - `POST /v1/chat/completions` for chat responses, including streaming support
 - `POST /v1/embeddings` for vector generation (float encoding only)
+- The default published model id is `ddr4_rag`; override it with `R2R_OPENAI_MODEL_ALIAS` if you want a different name presented to OpenAI-compatible clients.
 
 All requests reuse the existing R2R authentication headers (Bearer token or
 `X-API-Key`), so you can connect OpenWebUI as a tool or workspace without extra

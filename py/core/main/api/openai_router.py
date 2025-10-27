@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from collections.abc import Iterable
 from typing import Any, AsyncGenerator, Optional
@@ -18,6 +19,8 @@ class OpenAIRouter(BaseRouterV3):
     """
 
     def _setup_routes(self) -> None:
+        self._model_alias_map: dict[str, str] = {}
+        self._alias_name = os.getenv("R2R_OPENAI_MODEL_ALIAS", "ddr4_rag")
         @self.router.get(
             "/models",
             dependencies=[Depends(self.rate_limit_dependency)],
@@ -61,7 +64,7 @@ class OpenAIRouter(BaseRouterV3):
                         400, "`messages` must be a non-empty list."
                     )
 
-                model = payload.get("model") or self._default_llm_model()
+                model = self._resolve_model_id(payload.get("model"))
                 if not model:
                     return self._error_response(
                         400,
@@ -86,6 +89,11 @@ class OpenAIRouter(BaseRouterV3):
                 response_payload = completion.results.model_dump(
                     exclude_none=True
                 )
+                alias_model = self._alias_from_actual(
+                    response_payload.get("model")
+                )
+                if alias_model:
+                    response_payload["model"] = alias_model
                 return JSONResponse(content=response_payload)
 
             except R2RException as exc:
@@ -176,6 +184,9 @@ class OpenAIRouter(BaseRouterV3):
 
                 async for chunk in stream:
                     payload = chunk.model_dump(exclude_none=True)
+                    alias_model = self._alias_from_actual(payload.get("model"))
+                    if alias_model:
+                        payload["model"] = alias_model
                     yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
                 yield "data: [DONE]\n\n"
@@ -235,7 +246,7 @@ class OpenAIRouter(BaseRouterV3):
         if not seen:
             _add("r2r-default-model")
 
-        return list(seen.values())
+        return self._alias_models(seen, timestamp)
 
     def _default_llm_model(self) -> Optional[str]:
         candidates = [
@@ -255,6 +266,59 @@ class OpenAIRouter(BaseRouterV3):
             getattr(self.config.completion_embedding, "base_model", None),
         ]
         return next((model for model in candidates if model), None)
+
+    def _resolve_model_id(self, requested: Optional[str]) -> Optional[str]:
+        default_model = self._default_llm_model()
+        if requested is None or requested == "":
+            return default_model
+
+        if not self._model_alias_map:
+            self._collect_models()
+
+        if requested in self._model_alias_map:
+            return self._model_alias_map[requested]
+
+        if requested == self._alias_name and default_model:
+            self._model_alias_map[requested] = default_model
+            return default_model
+
+        return requested
+
+    def _alias_models(
+        self, seen: dict[str, dict[str, Any]], timestamp: int
+    ) -> list[dict[str, Any]]:
+        self._model_alias_map.clear()
+        default_model = self._default_llm_model()
+        preferred_alias = (
+            self._alias_name if self._alias_name else default_model
+        )
+
+        results: list[dict[str, Any]] = []
+        for actual_id, metadata in seen.items():
+            alias_id = (
+                preferred_alias if actual_id == default_model else actual_id
+            )
+
+            if alias_id in self._model_alias_map:
+                continue
+
+            self._model_alias_map[alias_id] = actual_id
+            entry = dict(metadata)
+            entry["id"] = alias_id
+            entry["created"] = metadata.get("created", timestamp)
+            results.append(entry)
+
+        return results
+
+    def _alias_from_actual(self, actual: Optional[str]) -> Optional[str]:
+        if actual is None or actual == "":
+            return None
+        if not self._model_alias_map:
+            self._collect_models()
+        for alias, target in self._model_alias_map.items():
+            if target == actual:
+                return alias
+        return None
 
     def _build_generation_config(
         self, payload: dict[str, Any], model: str
