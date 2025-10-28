@@ -42,6 +42,8 @@ services:
       # Using local LLM server
       LMSTUDIO_API_BASE: http://localhost:8000/v1
       LMSTUDIO_API_KEY: '123'
+      # LMSTUDIO_API_BASE: http://common.llm.skhynix.com/v1
+      # LMSTUDIO_API_KEY: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ7XCJhY2NvdW50VHlwZVwiOlwiU0VSVklDRVwiLFwiYWNjb3VudElkXCI6XCI2NTEwNTY0XCIsXCJhY2NvdW50TmFtZVwiOlwiMzIwMVwiLFwiYWNjb3VudERldGFpbFwiOnt9fSJ9.LPPq3SfY3d1F4ntMRTqKuy413L0LQNAaaGDtzyP37LxH-iClbIPMx03rjtpq6Urc0j2CGYd5EhA1GSO2yPC1lQ
       
       # OpenAI-compatible embeddings base should be the root that contains /v1
       # Do not include the /embeddings suffix here; the client appends it.

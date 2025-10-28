@@ -18,6 +18,7 @@ fast_llm = "lmstudio/llm"
 # LLM used for user-facing output, like RAG replies
 # Using local LLM server
 quality_llm = "lmstudio/llm"
+# quality_llm = "lmstudio/Qwen3-Next-80B-A3B-Instruct"
 
 # LLM used for ingesting visual inputs
 vlm = "lmstudio/llm"
