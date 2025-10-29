@@ -65,7 +65,7 @@ class OpenAIRouter(BaseRouterV3):
                         400, "`messages` must be a non-empty list."
                     )
 
-                stream = bool(payload.get("stream", False))
+                stream = bool(payload.get("stream", True))
                 metadata = payload.get("metadata") or {}
                 if not isinstance(metadata, dict):
                     metadata = {}
