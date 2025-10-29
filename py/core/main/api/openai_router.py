@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 from collections.abc import Iterable
 from typing import Any, AsyncGenerator, Optional
@@ -437,7 +438,176 @@ class OpenAIRouter(BaseRouterV3):
         answer = getattr(rag_response, "generated_answer", None)
         if not answer:
             answer = getattr(rag_response, "completion", None)
-        return answer or ""
+        return self._format_answer_with_citations(answer or "", rag_response)
+
+    def _format_answer_with_citations(
+        self, answer: str, rag_response: Any
+    ) -> str:
+        citations = getattr(rag_response, "citations", None)
+        if not answer or not citations:
+            return answer
+
+        unique_citations: list[Any] = []
+        seen_ids: set[str] = set()
+        for citation in citations:
+            cid = self._extract_citation_field(citation, "id")
+            if not cid or cid in seen_ids:
+                continue
+            seen_ids.add(cid)
+            unique_citations.append(citation)
+
+        if not unique_citations:
+            return answer
+
+        label_map: dict[str, str] = {}
+        footnotes: list[tuple[int, str]] = []
+        for index, citation in enumerate(unique_citations, start=1):
+            cid = self._extract_citation_field(citation, "id")
+            if not cid:
+                continue
+            label = f"[^{index}]"
+            label_map[cid] = label
+            description = self._describe_citation(citation)
+            footnotes.append((index, description))
+
+        if not label_map:
+            return answer
+
+        def replace(match: re.Match[str]) -> str:
+            cid = match.group(1)
+            return label_map.get(cid, match.group(0))
+
+        formatted = re.sub(r"\[([^\[\]]+)\]", replace, answer)
+        references = [
+            f"[^{idx}]: {desc}" if desc else f"[^{idx}]: Source {idx}"
+            for idx, desc in footnotes
+        ]
+        if references:
+            formatted = formatted.rstrip()
+            formatted += "\n\n**References**\n" + "\n".join(references)
+        return formatted
+
+    def _extract_citation_field(
+        self, citation: Any, key: str
+    ) -> Optional[str]:
+        value = None
+        if isinstance(citation, dict):
+            value = citation.get(key)
+        else:
+            value = getattr(citation, key, None)
+        if value is None:
+            return None
+        return str(value)
+
+    def _describe_citation(self, citation: Any) -> str:
+        payload = None
+        if isinstance(citation, dict):
+            payload = citation.get("payload")
+        else:
+            payload = getattr(citation, "payload", None)
+
+        payload_dict = self._ensure_mapping(payload)
+        metadata = (
+            payload_dict.get("metadata")
+            if isinstance(payload_dict.get("metadata"), dict)
+            else {}
+        )
+
+        doc_hint = None
+        for key in (
+            "document_title",
+            "title",
+            "file_name",
+            "file_path",
+            "path",
+            "uri",
+            "source",
+        ):
+            candidate = metadata.get(key) if isinstance(metadata, dict) else None
+            if not candidate and isinstance(payload_dict, dict):
+                candidate = payload_dict.get(key)
+            if candidate:
+                doc_hint = str(candidate)
+                break
+
+        if doc_hint and any(sep in doc_hint for sep in ("/", "\\")):
+            doc_label = os.path.basename(doc_hint)
+        else:
+            doc_label = doc_hint
+
+        if not doc_label:
+            doc_id = payload_dict.get("document_id") if isinstance(payload_dict, dict) else None
+            if doc_id:
+                doc_label = f"Document {str(doc_id)[:8]}"
+
+        if not doc_label:
+            fallback = self._extract_citation_field(citation, "id") or "source"
+            doc_label = f"Source {fallback}"
+
+        details: list[str] = []
+
+        if isinstance(metadata, dict):
+            section = metadata.get("section") or metadata.get("heading")
+            if section:
+                details.append(f"§{section}")
+
+            page = metadata.get("page") or metadata.get("page_number")
+            if page is not None:
+                details.append(f"page {page}")
+
+            chunk_order = (
+                metadata.get("chunk_order")
+                if "chunk_order" in metadata
+                else payload_dict.get("chunk_order") if isinstance(payload_dict, dict) else None
+            )
+            if chunk_order is not None:
+                details.append(f"chunk {chunk_order}")
+
+        score = None
+        if isinstance(payload_dict, dict):
+            score = payload_dict.get("score")
+        if score is None and isinstance(metadata, dict):
+            score = metadata.get("score")
+        if score is not None:
+            try:
+                details.append(f"score {float(score):.2f}")
+            except (TypeError, ValueError):
+                details.append(f"score {score}")
+
+        snippet = None
+        if isinstance(payload_dict, dict):
+            snippet = payload_dict.get("text")
+        if isinstance(snippet, str):
+            cleaned = re.sub(r"\s+", " ", snippet.strip())
+            if cleaned:
+                truncated = (
+                    f"{cleaned[:120]}…" if len(cleaned) > 120 else cleaned
+                )
+                details.append(f"\"{truncated}\"")
+
+        parts = [doc_label]
+        parts.extend(details)
+        return " · ".join(part for part in parts if part)
+
+    def _ensure_mapping(self, value: Any) -> dict[str, Any]:
+        if value is None:
+            return {}
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    return item
+        for attr in ("model_dump", "dict", "as_dict", "to_dict"):
+            method = getattr(value, attr, None)
+            if callable(method):
+                try:
+                    data = method()
+                except TypeError:
+                    continue
+                if isinstance(data, dict):
+                    return data
+        return {}
 
     def _extract_usage(self, rag_response: Any) -> dict[str, int]:
         metadata = getattr(rag_response, "metadata", {}) or {}
