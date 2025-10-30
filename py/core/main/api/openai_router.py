@@ -465,7 +465,7 @@ class OpenAIRouter(BaseRouterV3):
             cid = self._extract_citation_field(citation, "id")
             if not cid:
                 continue
-            label = f"[^{index}]"
+            label = f"[C{index}](#ref-{index})"
             label_map[cid] = label
             description = self._describe_citation(citation)
             footnotes.append((index, description))
@@ -478,10 +478,13 @@ class OpenAIRouter(BaseRouterV3):
             return label_map.get(cid, match.group(0))
 
         formatted = re.sub(r"\[([^\[\]]+)\]", replace, answer)
-        references = [
-            f"[^{idx}]: {desc}" if desc else f"[^{idx}]: Source {idx}"
-            for idx, desc in footnotes
-        ]
+        references = []
+        for idx, desc in footnotes:
+            anchor = f"ref-{idx}"
+            body = desc if desc else f"Source {idx}"
+            references.append(
+                f"- <a id=\"{anchor}\"></a>**C{idx}** {body}"
+            )
         if references:
             formatted = formatted.rstrip()
             formatted += "\n\n**References**\n" + "\n".join(references)
@@ -576,18 +579,43 @@ class OpenAIRouter(BaseRouterV3):
 
         snippet = None
         if isinstance(payload_dict, dict):
-            snippet = payload_dict.get("text")
+            snippet = payload_dict.get("text") or payload_dict.get("snippet")
         if isinstance(snippet, str):
-            cleaned = re.sub(r"\s+", " ", snippet.strip())
+            cleaned = self._clean_snippet(snippet)
             if cleaned:
-                truncated = (
-                    f"{cleaned[:120]}…" if len(cleaned) > 120 else cleaned
-                )
-                details.append(f"\"{truncated}\"")
+                details.append(f"\"{cleaned}\"")
 
         parts = [doc_label]
         parts.extend(details)
         return " · ".join(part for part in parts if part)
+
+    def _clean_snippet(self, text: str, max_length: int = 240) -> str:
+        lines = text.splitlines()
+        cleaned_parts: list[str] = []
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if all(ch in "-=_`~" for ch in stripped):
+                continue
+            if stripped.startswith("|"):
+                alnum = sum(ch.isalnum() for ch in stripped)
+                if alnum == 0 or alnum / max(len(stripped), 1) < 0.3:
+                    continue
+                stripped = re.sub(r"\s*\|\s*", " ", stripped)
+            cleaned_parts.append(stripped)
+
+        if cleaned_parts:
+            cleaned = " ".join(cleaned_parts)
+        else:
+            cleaned = text
+
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        if not cleaned:
+            return ""
+        if len(cleaned) > max_length:
+            cleaned = cleaned[: max_length - 1].rstrip() + "…"
+        return cleaned
 
     def _ensure_mapping(self, value: Any) -> dict[str, Any]:
         if value is None:
