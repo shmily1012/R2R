@@ -1,0 +1,8 @@
+[app]
+project_name = "r2r_jira"
+default_collection_name = "JIRA"
+default_collection_description = "PAE JIRA knowledge base."
+
+[database]
+db_name = "r2r_jira"
+
